@@ -463,17 +463,16 @@ describe('catalog routes with per-model configuration', () => {
     })
 
     const info = await ctx.llm.resolveModelInfo('deepseek', catalogModel.id)
-    // The configured field wins and the name still comes from the catalog. The
-    // catalog's own output cap is the model's capability, not a cap anyone
-    // chose, so it must not arrive as the request default.
+    // The configured field wins; the name and SDK output allowance still come
+    // from the catalog.
     expect(info.context).toEqual({ contextWindow: 4096 })
     expect(info.name).toBe(catalogModel.name)
-    expect(info.defaultMaxTokens).toBeUndefined()
+    expect(info.defaultMaxTokens).toBe(catalogModel.maxTokens)
     // An explicit list replaces the catalog rather than adding to it.
     expect((await ctx.llm.listModels('deepseek')).map(model => model.id)).toEqual([catalogModel.id])
   })
 
-  it('materializes a request default only from a configured output cap', async () => {
+  it('lets a configured output cap override the SDK default', async () => {
     const server = await mockServer([])
     const [catalogModel] = getBuiltinModels('deepseek')
     if (catalogModel === undefined) throw new Error('the installed catalog ships no deepseek model')

@@ -1,0 +1,11 @@
+version: 1
+scenario: compaction-pi-ai-output-reserve
+profile: headless
+composition: compaction-pi-ai-output-reserve
+recording: authored
+platform: posix
+header:
+  class: compaction-pi-ai-output-reserve
+  pin: true
+  toolSchemasSource: compaction-recovery
+  changes: 1

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
 import { Context } from '@deepseek-ai/cordis'
 import Loader, { type ModuleLoaderV2 } from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
@@ -87,6 +88,36 @@ async function loadComposition(): Promise<{ ctx: Context; settingsPath: string }
 }
 
 describe('llm-pi-ai real dormant composition', () => {
+  it('reports the SDK output allowance so automatic compaction can reserve it', async () => {
+    const server = await mockServer([{ events: textEvents }])
+    const { ctx, settingsPath } = await loadComposition()
+    await writeFile(settingsPath, [
+      '- id: llm-pi-ai',
+      '  config:',
+      '    providers:',
+      '      deepseek:',
+      '        apiKeyEnv: PI_COMPOSITION_KEY',
+      `        baseURL: ${server.url}`,
+      '',
+    ].join('\n'))
+    await vi.waitFor(() => {
+      expect(ctx.llm.listProviders().map(provider => provider.id)).toEqual(['deepseek'])
+    }, { timeout: 5000 })
+    const model = getBuiltinModels('deepseek').find(entry => entry.id === 'deepseek-flash')
+    if (model === undefined) throw new Error('the installed catalog ships no deepseek-flash model')
+    const info = await ctx.llm.resolveModelInfo('deepseek', model.id)
+    const prepared = await ctx.llm.prepareCall({ provider: 'deepseek', model: model.id })
+    expect(prepared.config.maxTokens).toBe(model.maxTokens)
+    expect(prepared.adapterDefaults).toMatchObject({ maxTokens: true })
+    const explicit = await ctx.llm.prepareCall({ provider: 'deepseek', model: model.id, maxTokens: 4096 })
+    expect(explicit.config.maxTokens).toBe(4096)
+    expect(explicit.adapterDefaults.maxTokens).toBeUndefined()
+    const result = await assemble(ctx, { provider: 'deepseek', model: model.id, messages: [] })
+    expect(result.finish).toEqual({ kind: 'stop' })
+    expect(server.requests[0]).toMatchObject({ max_tokens: model.maxTokens })
+    expect(info.defaultMaxTokens).toBe(model.maxTokens)
+  })
+
   it('boots with zero routes and registers one the moment settings supply a profile', async () => {
     vi.stubEnv('PI_COMPOSITION_KEY', '')
     const server = await mockServer([{ events: textEvents }])

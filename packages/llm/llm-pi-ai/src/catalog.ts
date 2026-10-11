@@ -835,12 +835,9 @@ export interface RouteCatalog {
   /**
    * Per-request output caps this profile explicitly configured, by model id.
    *
-   * Separate from `Model.maxTokens` because the two answer different
-   * questions: pi-ai requires `maxTokens` as the model's output *capability*,
-   * while the harness seam's `defaultMaxTokens` is a cap the deployment chose
-   * to send on requests that name none. Materializing a catalog capability as
-   * a request default would start capping every request at a number nobody
-   * picked, so only an explicit configuration lands here.
+   * The adapter prefers these caps when reporting `defaultMaxTokens` to the
+   * harness. Otherwise it reports `Model.maxTokens`, matching the SDK's default
+   * output allowance for requests that omit a cap.
    */
   configuredMaxTokens: ReadonlyMap<string, number>
 }
